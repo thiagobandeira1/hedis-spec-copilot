@@ -1,6 +1,6 @@
 """Typed corpus manifest — the explicit whitelist of everything this project may fetch."""
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
@@ -8,7 +8,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, HttpUrl
 
 
-class LicensePosture(str, Enum):
+class LicensePosture(StrEnum):
     US_GOV_PUBLIC_DOMAIN = "us_gov_public_domain"
     PUBLIC_WEB_CITE_ONLY = "public_web_cite_only"
     REDISTRIBUTABLE = "redistributable"

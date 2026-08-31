@@ -56,6 +56,9 @@ ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S"]
+# The CMS PDFs genuinely contain en dashes/bullets; the parser must match them literally.
+"src/hedis_copilot/corpus/parse.py" = ["RUF001"]
+"src/hedis_copilot/corpus/chunk.py" = ["RUF001"]
 
 [tool.mypy]
 python_version = "3.12"
