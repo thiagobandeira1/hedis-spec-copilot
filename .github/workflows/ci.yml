@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # weekly windows smoke
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group dev
+      - name: Cache FastEmbed model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/fastembed
+          key: fastembed-bge-small-en-v1.5
+      - name: Lint (ruff)
+        run: uv run ruff check .
+      - name: Format check (ruff)
+        run: uv run ruff format --check .
+      - name: Type-check (mypy)
+        run: uv run mypy
+      - name: Tests (keyless — llm marker auto-skips)
+        run: uv run pytest
+        env:
+          FASTEMBED_CACHE_PATH: ~/.cache/fastembed
+      - name: Retrieval eval ratchet gate
+        run: |
+          uv run hedis build --source corpus/committed
+          uv run hedis eval --retrieval --gate
+        env:
+          FASTEMBED_CACHE_PATH: ~/.cache/fastembed
+      - name: License gates — no non-committable corpus files tracked
+        run: |
+          if git ls-files corpus/fetched corpus/cache data/index 2>/dev/null | grep .; then
+            echo "::error::fetch-at-build or index files are committed"; exit 1
+          fi
+          echo "OK"
+
+  windows-smoke:
+    if: github.event_name == 'schedule'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - run: uv sync --group dev
+      - run: uv run pytest -m "not embed and not llm" --no-cov -q

@@ -1,0 +1,31 @@
+{
+  "doc_id": "cms-measures-2027",
+  "title": "2027 Star Ratings Measures and Weights",
+  "publisher": "Centers for Medicare & Medicaid Services",
+  "source_url": "https://www.cms.gov/files/document/2027-star-ratings-measures.pdf",
+  "plan_year": 2027,
+  "doc_type": "measure_list",
+  "license_posture": "us_gov_public_domain",
+  "retrieval_date": "2026-08-31",
+  "measures": [],
+  "general_sections": [
+    {
+      "kind": "general",
+      "heading": "Page 1",
+      "text": "2027 Star Ratings Measures and Weights There are three measures being added beginning with the 2027 Star Ratings: 1\n• Care for Older Adults – Functional Status Assessment\n• Concurrent Use of Opioids and Benzodiaz epines\n• Polypharmacy: Use of Multiple Anticholinergic Medications in Older Adults All three measures are process measures and have a weight of one. Care for Older Adults – Functional Status Assessment is returning to the Star Ratings after a substantive specification change and is treated as a new measure. The Colorectal Cancer Screening measure is also being replaced by a respecified version and is treated as a new measure. There are three measures being removed beginning with the 2027 Star Ratings:\n• Care for Older Adults – Pain Assessment\n• Medication Reconciliation Post-Discharge\n• MTM Program Completion Rate for CMR The MTMProgram Completion Rate for CMR measure will be on the display page for measurement years 2025 and 2026 and will return to the Star Ratings as a new measure beginning with the 2029 Star Ratings (measurement year 2027). 1 Changes to the Medicare Advantage and the Medicare Prescription Drug Benefit Program for Contract Year 2024-Remaining Provisions and Contract Year 2025 Policy and Technical Changes to the Medicare Advantage Program, Medicare Prescription Drug Benefit Program, Medicare Cost Plan Program, and Programs of All-Inclusive Care for the Elderly (PACE). https://www.federalregister.gov/documents/2024/04/23/2024-07105/medicare-program-changes-to-the-medicare-advantage-and-the-medicare-prescription-drug-benefit",
+      "page": 1
+    },
+    {
+      "kind": "general",
+      "heading": "Page 2",
+      "text": "Table 1. 2027 Star Ratings Part C Measures and Measure Weights Part C Summary and MA-PD Overall Measure Name Weighting Category Weight Breast Cancer Screening Process Measure 1 Colorectal Cancer Screening Process Measure 1 Annual Flu Vaccine Process Measure 1 Improving or Maintaining Physical Health Outcome Measure 3 Improving or Maintaining Mental Health Outcome Measure 3 Monitoring Physical Activity Process Measure 1 Special Needs Plan (SNP) Care Management Process Measure 1 Care for Older Adults – Medication Review Process Measure 1 Care for Older Adults – Functional Status Assessment Process Measure 1 Osteoporosis Management in Women who had a Fracture Process Measure 1 Diabetes Care – Eye Exam Process Measure 1 Diabetes Care – Blood Sugar Controlled Intermediate Outcome Measure 3 Kidney Health Evaluation for Patients with Diabetes Process Measure 1 Controlling Blood Pressure Intermediate Outcome Measure 3 Reducing the Risk of Falling Process Measure 1 Improving Bladder Control Process Measure 1 Plan All-Cause Readmissions Outcome Measure 3 Statin Therapy for Patients with Cardiovascular Disease Process Measure 1 Transitions of Care Process Measure 1 Follow-up after Emergency Department Visit for People with Multiple Process Measure 1 High-Risk Chronic Conditions Getting Needed Care Patients’ Experience and Complaints Measure 2 Getting Appointments and Care Quickly Patients’ Experience and Complaints Measure 2 Customer Service Patients’ Experience and Complaints Measure 2 Rating of Health Care Quality Patients’ Experience and Complaints Measure 2 Rating of Health Plan Patients’ Experience and Complaints Measure 2 Care Coordination Patients’ Experience and Complaints Measure 2 Complaints about the Health Plan Patients’ Experience and Complaints Measure 2 Members Choosing to Leave the Plan Patients’ Experience and Complaints Measure 2 Health Plan Quality Improvement Improvement Measure 5 Plan Makes Timely Decisions about Appeals Measures Capturing Access 2 Reviewing Appeals Decisions Measures Capturing Access 2 Call Center – Foreign Language Interpreter and TTY Availability Measures Capturing Access 2",
+      "page": 2
+    },
+    {
+      "kind": "general",
+      "heading": "Page 3",
+      "text": "Table 2. 2027 Star Ratings Part D Measures and Measure Weights Part D Summary and MA-PD Overall Measure Name Weighting Category Weight Call Center – Foreign Language Interpreter and TTY Availability Measures Capturing Access 2 Complaints about the Drug Plan Patients’ Experience and Complaints Measure 2 Members Choosing to Leave the Plan Patients’ Experience and Complaints Measure 2 Drug Plan Quality Improvement Improvement Measure 5 Rating of Drug Plan Patients’ Experience and Complaints Measure 2 Getting Needed Prescription Drugs Patients’ Experience and Complaints Measure 2 MPF Price Accuracy Process Measure 1 Medication Adherence for Diabetes Medications Intermediate Outcome Measure 3 Medication Adherence for Hypertension (RAS antagonists) Intermediate Outcome Measure 3 Medication Adherence for Cholesterol (Statins) Intermediate Outcome Measure 3 Statin Use in Persons with Diabetes (SUPD) Process Measure 1 Concurrent Use of Opioids and Benzodiazepines (COB) Process Measure 1 Polypharmacy: Use of Multiple Anticholinergic Medications in Older Process Measure 1 Adults (Poly-ACH)",
+      "page": 3
+    }
+  ]
+}

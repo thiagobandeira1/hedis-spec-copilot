@@ -1,0 +1,49 @@
+# Corpus manifest — the ONLY sources this project ever fetches (explicit whitelist, never a
+# crawler). sha256 pins fail the fetch loudly when CMS silently revises a document; updating
+# a pin is a reviewed PR. license_posture drives the commit policy (tested by license gates).
+version: "2026.08"
+documents:
+  - doc_id: cms-tn-2026
+    title: "Medicare 2026 Part C & D Star Ratings Technical Notes"
+    publisher: "Centers for Medicare & Medicaid Services"
+    source_url: "https://www.cms.gov/files/document/2026-star-ratings-technical-notes.pdf"
+    sha256: "0ae91dbccbbdc7c657a69746d70425a8174d288093062fad96865f9bdee2a1d0"
+    retrieval_date: "2026-08-31"
+    plan_year: 2026
+    doc_type: technical_notes
+    license_posture: us_gov_public_domain
+    commit_policy: commit_normalized
+    parser_id: technical_notes
+  - doc_id: cms-tn-2025
+    title: "Medicare 2025 Part C & D Star Ratings Technical Notes"
+    publisher: "Centers for Medicare & Medicaid Services"
+    source_url: "https://www.cms.gov/files/document/2025-star-ratings-technical-notes.pdf"
+    sha256: "d74b10e973d7cde40c00aa768327974e7361bcfb5be90fb3f5284b8912776087"
+    retrieval_date: "2026-08-31"
+    plan_year: 2025
+    doc_type: technical_notes
+    license_posture: us_gov_public_domain
+    commit_policy: commit_normalized
+    parser_id: technical_notes
+  - doc_id: cms-measures-2027
+    title: "2027 Star Ratings Measures and Weights"
+    publisher: "Centers for Medicare & Medicaid Services"
+    source_url: "https://www.cms.gov/files/document/2027-star-ratings-measures.pdf"
+    sha256: "9feda16abd3b3a1e6c3a1e591d02f05f7773ae30e8bcf31473e3bd0a4589bb6f"
+    retrieval_date: "2026-08-31"
+    plan_year: 2027
+    doc_type: measure_list
+    license_posture: us_gov_public_domain
+    commit_policy: commit_normalized
+    parser_id: generic_pdf
+  - doc_id: cms-factsheet-2026
+    title: "2026 Medicare Star Ratings Fact Sheet"
+    publisher: "Centers for Medicare & Medicaid Services"
+    source_url: "https://www.cms.gov/files/document/2026-star-ratings-fact-sheet.pdf"
+    sha256: "327ac7667ce5a2eb9d48c6c8b36a8cd16238b7a13d97a705284f89273096eaa4"
+    retrieval_date: "2026-08-31"
+    plan_year: 2026
+    doc_type: fact_sheet
+    license_posture: us_gov_public_domain
+    commit_policy: commit_normalized
+    parser_id: generic_pdf
