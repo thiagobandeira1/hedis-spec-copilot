@@ -47,8 +47,19 @@ def render_readme_table(artifact: Mapping[str, object]) -> str:
     overall_raw = metrics.get("overall", metrics)
     if not isinstance(overall_raw, Mapping) or not overall_raw:
         raise ReportError("artifact metrics carry no overall values")
-    lines = ["| Metric | Value |", "|---|---|"]
-    lines.extend(f"| {key} | {_format_value(overall_raw[key])} |" for key in sorted(overall_raw))
+    dense_raw = metrics.get("dense_only_overall")
+    if isinstance(dense_raw, Mapping) and dense_raw:
+        lines = ["| Metric (test split) | Hybrid | Dense-only |", "|---|---|---|"]
+        lines.extend(
+            f"| {key} | {_format_value(overall_raw[key])} | "
+            f"{_format_value(dense_raw.get(key, '—'))} |"
+            for key in sorted(overall_raw)
+        )
+    else:
+        lines = ["| Metric | Value |", "|---|---|"]
+        lines.extend(
+            f"| {key} | {_format_value(overall_raw[key])} |" for key in sorted(overall_raw)
+        )
     stamp_keys = ("git_sha", "config_hash", "dataset_hash", "answer_model", "judge_model")
     stamps = [f"{key}={artifact[key]}" for key in stamp_keys if key in artifact]
     if stamps:

@@ -42,9 +42,17 @@ class RetrievalReport(BaseModel):
     per_item: list[ItemResult]
     per_category: dict[str, dict[str, float]]
     overall: dict[str, float]
-    """Means over answerable items only; refusal traps never dilute retrieval numbers."""
+    """Means over ALL answerable items (dev+test) — diagnostic only, never published."""
+    per_split: dict[str, dict[str, float]] = {}
+    """Answerable-item means per split. ``per_split['test']`` is the publishable number:
+    tuning happens on dev, so combined metrics would overstate rigor (review finding)."""
     refusal_trap_accuracy: float | None = None
     """Fraction of refusal_* items gate A refused; None when no gate_a_fn was supplied."""
+
+    @property
+    def test_overall(self) -> dict[str, float]:
+        """The headline block: test-split means, falling back to overall if no splits."""
+        return self.per_split.get("test", self.overall)
 
 
 def run_retrieval_eval(
@@ -62,6 +70,7 @@ def run_retrieval_eval(
     """
     per_item: list[ItemResult] = []
     answerable_rows: list[tuple[str, dict[str, float]]] = []
+    split_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     refusal_rows: list[tuple[str, dict[str, float]]] = []
     for item in items:
         if item.is_refusal:
@@ -86,6 +95,7 @@ def run_retrieval_eval(
                 "mrr": mrr(ranked, gold),
             }
             answerable_rows.append((item.category, metrics))
+            split_rows.setdefault(item.split, []).append((item.category, metrics))
         per_item.append(
             ItemResult(
                 item_id=item.item_id, category=item.category, split=item.split, metrics=metrics
@@ -101,6 +111,7 @@ def run_retrieval_eval(
         per_item=per_item,
         per_category=dict(sorted(per_category.items())),
         overall=answerable_agg.overall,
+        per_split={split: aggregate(rows).overall for split, rows in sorted(split_rows.items())},
         refusal_trap_accuracy=(
             sum(refusal_scores) / len(refusal_scores) if refusal_scores else None
         ),
@@ -116,11 +127,12 @@ def compare_to_baseline(
     ``evals/baseline.json`` carries them. An empty list means the gate passes.
     """
     regressions: list[str] = []
+    gated_block = report.test_overall  # the ratchet guards published (test-split) numbers
     for metric in GATED_METRICS:
         if metric not in baseline:
             continue
         expected = baseline[metric]
-        actual = report.overall.get(metric)
+        actual = gated_block.get(metric)
         if actual is None:
             regressions.append(f"{metric}: missing from report (baseline {expected:.4f})")
         elif actual < expected - tolerance:

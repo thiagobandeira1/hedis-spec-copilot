@@ -19,7 +19,7 @@ Part of a 7-repo value-based-care AI portfolio — the measure-knowledge compani
 flowchart LR
     M[manifest.yaml<br/>sha256-pinned whitelist] --> F[hedis fetch]
     F --> P[layout-mode PDF parser<br/>89 measures, per-field sections]
-    P --> C[measure/section chunker<br/>contextual headers, 1,892 chunks]
+    P --> C[measure/section chunker<br/>contextual headers, 1,821 chunks]
     C --> IDX[(embedded Chroma<br/>bge-small ONNX)]
     C --> BM[BM25 in-memory]
     Q[question] --> AR[alias router<br/>+ year inference]
@@ -59,13 +59,13 @@ against a committed, measured baseline (−0.02 ratchet on recall@8 / MRR). LLM 
 runs locally (`hedis eval --full`) and lands as stamped artifacts in `evals/results/`.
 
 <!-- EVAL:BEGIN -->
-| Metric | Value |
-|---|---|
-| hit@1 | 0.417 |
-| mrr | 0.511 |
-| precision@8 | 0.234 |
-| recall@5 | 0.417 |
-| recall@8 | 0.599 |
+| Metric (test split) | Hybrid | Dense-only |
+|---|---|---|
+| hit@1 | 0.500 | 0.528 |
+| mrr | 0.613 | 0.649 |
+| precision@8 | 0.260 | 0.247 |
+| recall@5 | 0.498 | 0.550 |
+| recall@8 | 0.646 | 0.621 |
 
 _Stamps: config_hash=05d482f586746260 · dataset_hash=0ee214006f191ae2_
 <!-- EVAL:END -->
@@ -75,12 +75,18 @@ test) was authored doc-first against the committed corpus with a documented prot
 (`evals/README.md`); labels are (doc, measure, section)-granular so they survive chunker
 refactors.
 
-**A finding worth reading:** eval-driven tuning found year conflation was the dominant
-retrieval failure — adding deterministic plan-year inference moved hit@1 from 0.19 → 0.42
-and recall@8 from 0.45 → 0.60. Calibration also showed refusal traps **cannot** be separated
-from answerable questions in embedding space (both 0.64–0.79 best-cosine on bge-small), so
-pre-LLM refusal is a degenerate-query guard only — the evidence and decision live in
-[ADR-007](docs/adr/007-gate-a-degenerate-guard-only.md).
+**Findings worth reading** (each measured, then fixed or documented):
+
+- **Year conflation was the dominant retrieval failure** — unqualified queries mixed
+  2025/2026 chunks. Deterministic plan-year inference plus an adversarial-review parser fix
+  (wrapped TOC entries had created phantom measure blocks that poisoned the index) moved
+  all-items hit@1 across the tuning cycle from 0.19 → 0.42 → 0.50.
+- **The hybrid delta is mixed, not a slogan**: on the test split, dense-only edges hybrid on
+  MRR (0.649 vs 0.613) while hybrid wins recall@8 (0.646 vs 0.621). Both columns are
+  published; the `Reranker` seam exists for whatever the numbers justify next.
+- **Refusal traps cannot be separated in embedding space** (both classes land 0.64–0.79
+  best-cosine on bge-small — plausible questions are plausible), so pre-LLM refusal is a
+  degenerate-query guard only: [ADR-007](docs/adr/007-gate-a-degenerate-guard-only.md).
 
 ## The corpus is public — by construction
 

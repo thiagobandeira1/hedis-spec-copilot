@@ -37,12 +37,21 @@ def main() -> NoReturn:
     """
     import os
     import sys
+    import traceback
+
+    # Windows pipes default to cp1252 and crash on the corpus's en dashes; match Ubuntu.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
     code = 0
     try:
         app()
     except SystemExit as exc:
         code = int(exc.code) if isinstance(exc.code, int) else 1
+    except BaseException:
+        traceback.print_exc()
+        code = 1
     sys.stdout.flush()
     sys.stderr.flush()
     os._exit(code)
@@ -246,8 +255,9 @@ def evaluate(
         raise typer.Exit(2)
 
     if not DATASET_PATH.exists():
-        typer.echo(f"no dataset yet at {DATASET_PATH} — arrives with the eval-content wave")
-        raise typer.Exit(0)
+        # An explicitly requested eval must never green-exit on a missing dataset (a wrong
+        # working directory would otherwise pass CI vacuously — review finding).
+        _fail(f"dataset not found at {DATASET_PATH.resolve()} — run from the repository root")
 
     settings = get_settings()
     retriever = _open_retriever(settings)
@@ -265,6 +275,8 @@ def evaluate(
     except (DatasetError, LabelResolutionError) as exc:
         _fail(str(exc))
 
+    from hedis_copilot.retrieval.hybrid import HybridRetriever
+
     def retriever_fn(question: str) -> list[str]:
         return [scored.chunk.chunk_id for scored in retriever.retrieve(question).chunks]
 
@@ -278,6 +290,18 @@ def evaluate(
 
     report = run_retrieval_eval(retriever_fn, items, resolved, gate_a_fn=gate_a_fn)
 
+    # Dense-only pass: the SPEC-promised hybrid-vs-dense side-by-side (published as the
+    # measured justification for BM25's existence).
+    dense_report = None
+    if isinstance(retriever, HybridRetriever):
+
+        def dense_fn(question: str) -> list[str]:
+            return [
+                scored.chunk.chunk_id for scored in retriever.retrieve_dense_only(question).chunks
+            ]
+
+        dense_report = run_retrieval_eval(dense_fn, items, resolved)
+
     date = datetime.now(UTC).date().isoformat()
     artifact_path = RESULTS_DIR / f"retrieval-{date}.json"
     write_artifact(
@@ -289,15 +313,26 @@ def evaluate(
             "embedding_model": settings.embedding_model,
             "dataset_hash": _dataset_hash(DATASET_PATH),
             "item_count": len(items),
+            "note": "metrics.overall is the TEST split (hybrid); tuning uses dev only",
             "metrics": {
-                "overall": report.overall,
+                "overall": report.test_overall,
+                "overall_dev": report.per_split.get("dev", {}),
+                "overall_all_items": report.overall,
+                "dense_only_overall": dense_report.test_overall if dense_report else None,
                 "per_category": report.per_category,
                 "refusal_trap_accuracy": report.refusal_trap_accuracy,
             },
         },
     )
 
-    typer.echo("overall (answerable items):")
+    typer.echo("test split (published, hybrid):")
+    for name, value in sorted(report.test_overall.items()):
+        typer.echo(f"  {name:<14} {value:.4f}")
+    if dense_report is not None:
+        typer.echo("test split (dense-only, for the hybrid delta):")
+        for name, value in sorted(dense_report.test_overall.items()):
+            typer.echo(f"  {name:<14} {value:.4f}")
+    typer.echo("all answerable items (diagnostic):")
     for name, value in sorted(report.overall.items()):
         typer.echo(f"  {name:<14} {value:.4f}")
     if report.refusal_trap_accuracy is not None:

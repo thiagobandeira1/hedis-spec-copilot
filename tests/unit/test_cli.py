@@ -42,23 +42,24 @@ def test_ask_without_index_exits_nonzero_with_rebuild_hint(
     assert "hedis build" in _all_output(result)
 
 
-def test_eval_retrieval_without_dataset_exits_zero_with_note(
+def test_eval_retrieval_without_dataset_fails_loudly(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    """An explicitly requested eval must never green-exit on a missing dataset (a wrong
+    cwd would otherwise pass CI vacuously — review finding)."""
     monkeypatch.setattr(cli, "DATASET_PATH", tmp_path / "absent" / "questions.jsonl")
     result = runner.invoke(cli.app, ["eval", "--retrieval"])
-    assert result.exit_code == 0
-    assert "no dataset yet" in _all_output(result)
+    assert result.exit_code == 1
+    assert "dataset not found" in _all_output(result)
 
 
-def test_eval_retrieval_gate_without_dataset_still_exits_zero(
+def test_eval_retrieval_gate_without_dataset_also_fails(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """--gate cannot fail before a dataset exists (nothing to regress against)."""
     monkeypatch.setattr(cli, "DATASET_PATH", tmp_path / "absent" / "questions.jsonl")
     result = runner.invoke(cli.app, ["eval", "--retrieval", "--gate"])
-    assert result.exit_code == 0
-    assert "no dataset yet" in _all_output(result)
+    assert result.exit_code == 1
+    assert "dataset not found" in _all_output(result)
 
 
 def test_eval_without_mode_flag_is_a_usage_error() -> None:

@@ -28,7 +28,7 @@ CHUNKS_FILENAME = "chunks.jsonl"
 
 
 class StaleIndexError(RuntimeError):
-    """The on-disk index does not match the current code/config â€” rebuild required."""
+    """The on-disk index does not match the current code/config - rebuild required."""
 
 
 class IndexStamp(BaseModel):
@@ -60,8 +60,16 @@ def write_stamp(index_dir: Path, stamp: IndexStamp) -> None:
 def load_stamp(index_dir: Path) -> IndexStamp:
     path = stamp_path(index_dir)
     if not path.is_file():
-        raise StaleIndexError(f"no index stamp at {path} â€” run `hedis build` to build the index")
-    return IndexStamp.model_validate_json(path.read_text(encoding="utf-8"))
+        raise StaleIndexError(f"no index stamp at {path} - run `hedis build` to build the index")
+    # ValueError covers pydantic ValidationError and json.JSONDecodeError; only the exception
+    # class is reported so raw (possibly corrupt) file content never leaks into the message.
+    try:
+        return IndexStamp.model_validate_json(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise StaleIndexError(
+            f"index stamp at {path} is corrupt or unreadable ({type(exc).__name__}) - "
+            "rebuild with `hedis build`"
+        ) from exc
 
 
 def verify_stamp(settings: Settings) -> IndexStamp:
@@ -82,7 +90,7 @@ def verify_stamp(settings: Settings) -> IndexStamp:
         )
     if problems:
         raise StaleIndexError(
-            f"index at {settings.index_dir} is stale: " + "; ".join(problems) + " â€” "
+            f"index at {settings.index_dir} is stale: " + "; ".join(problems) + " - "
             "rebuild with `hedis build`"
         )
     return stamp
@@ -98,13 +106,21 @@ def write_chunks_jsonl(path: Path, chunks: Sequence[Chunk]) -> None:
 
 def load_chunks_jsonl(path: Path) -> dict[str, Chunk]:
     if not path.is_file():
-        raise StaleIndexError(f"no chunk sidecar at {path} â€” run `hedis build`")
+        raise StaleIndexError(f"no chunk sidecar at {path} - run `hedis build`")
     chunks: dict[str, Chunk] = {}
-    with path.open(encoding="utf-8") as fh:
-        for line in fh:
-            if line.strip():
-                chunk = Chunk.model_validate_json(line)
-                chunks[chunk.chunk_id] = chunk
+    # ValueError covers pydantic ValidationError, json.JSONDecodeError, and UnicodeDecodeError;
+    # only the exception class is reported so raw line content never leaks into the message.
+    try:
+        with path.open(encoding="utf-8") as fh:
+            for line in fh:
+                if line.strip():
+                    chunk = Chunk.model_validate_json(line)
+                    chunks[chunk.chunk_id] = chunk
+    except (OSError, ValueError) as exc:
+        raise StaleIndexError(
+            f"chunk sidecar at {path} is corrupt or unreadable ({type(exc).__name__}) - "
+            "rebuild with `hedis build`"
+        ) from exc
     return chunks
 
 
@@ -139,7 +155,7 @@ class ChromaStore:
         )
 
     def reset(self) -> None:
-        """Drop and recreate the collection â€” a build always starts empty."""
+        """Drop and recreate the collection - a build always starts empty."""
         # The collection may not exist yet; chroma's not-found error type varies by version.
         with contextlib.suppress(Exception):
             self._client.delete_collection(COLLECTION_NAME)
