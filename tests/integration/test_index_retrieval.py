@@ -18,7 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 COMMITTED_DIR = REPO_ROOT / "corpus" / "committed"
 
 # --------------------------------------------------------------------------------------
-# Embedder asymmetry — mocked fastembed, no model download, no marker.
+# Embedder asymmetry â€” mocked fastembed, no model download, no marker.
 # --------------------------------------------------------------------------------------
 
 
@@ -75,7 +75,7 @@ def test_query_is_prefixed_exactly_once(fake_fastembed: type[_FakeTextEmbedding]
 
 
 # --------------------------------------------------------------------------------------
-# Real index over a small fixture (2 measures from the committed corpus) — @embed.
+# Real index over a small fixture (2 measures from the committed corpus) â€” @embed.
 # --------------------------------------------------------------------------------------
 
 
@@ -112,7 +112,7 @@ def built_settings(tmp_path_factory: pytest.TempPathFactory) -> Settings:
 def test_stamp_written_and_verifies(built_settings: Settings) -> None:
     stamp = verify_stamp(built_settings)
     assert stamp.embedding_model == built_settings.embedding_model
-    assert stamp.config_hash == built_settings.config_hash()
+    assert stamp.config_hash == built_settings.index_hash()
     assert stamp.manifest_version == "unversioned"  # fixture corpus has no manifest.yaml
     assert stamp.chunk_count > 0
     assert stamp == load_stamp(built_settings.index_dir)
@@ -141,7 +141,7 @@ def test_unfiltered_query_still_answers(built_settings: Settings) -> None:
     retriever = HybridRetriever.from_settings(built_settings)
     result = retriever.retrieve("what screening measures exist", plan_year=2026)
     assert result.measure_filter is None
-    assert result.chunks  # no filter, no fallback — plain hybrid retrieval
+    assert result.chunks  # no filter, no fallback â€” plain hybrid retrieval
     assert not result.used_fallback
 
 
