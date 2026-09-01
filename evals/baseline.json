@@ -1,5 +1,5 @@
 {
-  "note": "Measured ratchet baseline (never aspirational). CI fails if recall@8 or mrr drops more than 0.02 absolute below these. Moves only via PR with an ADR note. Source: evals/results/retrieval-2026-09-01.json (config 05d482f586746260, dataset 0ee214006f191ae2).",
-  "mrr": 0.5112,
-  "recall@8": 0.5991
+  "note": "Measured ratchet baseline on the TEST split (never aspirational; dev is for tuning). CI fails if recall@8 or mrr drops more than 0.02 absolute below these. Moves only via PR with an ADR note. Source: evals/results/retrieval-2026-09-01.json after the TOC-phantom parser fix and year-inference tuning.",
+  "mrr": 0.6133,
+  "recall@8": 0.6459
 }

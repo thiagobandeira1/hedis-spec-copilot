@@ -51,6 +51,12 @@ def build_index(settings: Settings, committed_dir: Path) -> IndexStamp:
 
     embedder = FastEmbedEmbeddings(settings.embedding_model)
     store = ChromaStore(settings.index_dir)
+    # Invalidate the PREVIOUS build before touching the collection: an interrupted rebuild
+    # must leave a loudly-stale index (missing stamp), never an old stamp validating a
+    # half-filled collection.
+    stamp_file = settings.index_dir / "stamp.json"
+    stamp_file.unlink(missing_ok=True)
+    chunks_path(settings.index_dir).unlink(missing_ok=True)
     store.reset()
     for start in range(0, len(chunks), _EMBED_BATCH_SIZE):
         batch = chunks[start : start + _EMBED_BATCH_SIZE]

@@ -26,10 +26,12 @@ _FALLBACK_MIN_CHUNKS = 4
 
 _YEAR_RE = re.compile(r"\b(20\d{2})\b")
 
-#: Queries that compare across years must see every year — no default filter.
+#: Queries that compare across years must see every year — no default filter. Ambiguous
+#: domain phrases are anchored to year context ("prior authorization" and "used to
+#: calculate" must NOT disable the default-year filter).
 _CROSS_YEAR_RE = re.compile(
-    r"\b(chang\w*|renam\w*|differ\w*|previous|prior|compar\w*|versus|vs\.?|"
-    r"new in|retired|no longer|used to|year.over.year)\b",
+    r"\b(chang\w*|renam\w*|differ\w*|previous year|prior year|prior to 20\d{2}|"
+    r"compar\w*|versus|vs\.?|new in|retired|no longer|used to be|year.over.year)\b",
     re.IGNORECASE,
 )
 
@@ -85,8 +87,16 @@ class HybridRetriever:
     @classmethod
     def from_settings(cls, settings: Settings) -> "HybridRetriever":
         """Open a built index, refusing loudly (StaleIndexError) if it is stale/missing."""
-        verify_stamp(settings)
+        stamp = verify_stamp(settings)
         chunks = load_chunks_jsonl(chunks_path(settings.index_dir))
+        if len(chunks) != stamp.chunk_count:
+            from hedis_copilot.index.store import StaleIndexError
+
+            raise StaleIndexError(
+                f"index at {settings.index_dir} is inconsistent: stamp says "
+                f"{stamp.chunk_count} chunks, sidecar holds {len(chunks)} - rebuild with "
+                "`hedis build`"
+            )
         return cls(
             settings,
             store=ChromaStore(settings.index_dir),
@@ -101,12 +111,18 @@ class HybridRetriever:
         query: str,
         measure_ids: list[str] | None,
         plan_year: int | None,
+        *,
+        use_bm25: bool = True,
     ) -> _Legs:
         dense = self._store.query(
             embedding, self._settings.dense_k, measure_ids=measure_ids, plan_year=plan_year
         )
-        bm25 = self._bm25.query(
-            query, self._settings.bm25_k, measure_ids=measure_ids, plan_year=plan_year
+        bm25 = (
+            self._bm25.query(
+                query, self._settings.bm25_k, measure_ids=measure_ids, plan_year=plan_year
+            )
+            if use_bm25
+            else []
         )
         dense_ids = [chunk_id for chunk_id, _ in dense]
         bm25_ids = [chunk_id for chunk_id, _ in bm25]
@@ -119,18 +135,25 @@ class HybridRetriever:
 
     def _infer_year(self, query: str) -> int | None:
         """Explicit year in the query > cross-year smell (no filter) > index default."""
-        mentioned = [int(y) for y in _YEAR_RE.findall(query) if int(y) in self._indexed_years]
+        mentioned = {int(y) for y in _YEAR_RE.findall(query) if int(y) in self._indexed_years}
         if len(mentioned) == 1:
-            return mentioned[0]
+            return next(iter(mentioned))
         if mentioned or _CROSS_YEAR_RE.search(query):
             return None
         return self._default_year
 
     def retrieve(self, query: str, *, plan_year: int | None = None) -> RetrievalResult:
+        return self._retrieve(query, plan_year=plan_year, use_bm25=True)
+
+    def retrieve_dense_only(self, query: str, *, plan_year: int | None = None) -> RetrievalResult:
+        """Dense-leg-only retrieval — exists so the eval can measure the hybrid delta."""
+        return self._retrieve(query, plan_year=plan_year, use_bm25=False)
+
+    def _retrieve(self, query: str, *, plan_year: int | None, use_bm25: bool) -> RetrievalResult:
         effective_year = plan_year if plan_year is not None else self._infer_year(query)
         measure_ids = self._router.route(query, effective_year) or None
         embedding = self._embedder.embed_query(query)
-        legs = self._run_legs(embedding, query, measure_ids, effective_year)
+        legs = self._run_legs(embedding, query, measure_ids, effective_year, use_bm25=use_bm25)
         fused = list(legs.fused)
         dense_ranks = dict(legs.dense_ranks)
         bm25_ranks = dict(legs.bm25_ranks)

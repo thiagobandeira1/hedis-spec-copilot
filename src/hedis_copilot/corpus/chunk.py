@@ -59,7 +59,21 @@ def _split_text(text: str, max_tokens: int, overlap_tokens: int) -> list[str]:
         current_tokens += unit_tokens
     if current:
         windows.append(" ".join(current))
-    return windows
+    # Final guarantee: _token_estimate charges dense numeric text by characters (chars/4),
+    # which the word-count hardening above cannot see — a 369-word coefficient table can
+    # still estimate >512 tokens and would be silently truncated by the embedder. Char-split
+    # any window that still exceeds the budget.
+    max_chars = max_tokens * 4
+    bounded: list[str] = []
+    for window in windows:
+        if _token_estimate(window) <= max_tokens:
+            bounded.append(window)
+            continue
+        for start in range(0, len(window), max_chars):
+            piece = window[start : start + max_chars].strip()
+            if piece:
+                bounded.append(piece)
+    return bounded
 
 
 def _chunk_id(doc_id: str, measure_id: str | None, section: str, text: str) -> str:

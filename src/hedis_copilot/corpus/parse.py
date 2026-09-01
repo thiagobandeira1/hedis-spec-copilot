@@ -120,11 +120,35 @@ def _split_fields(block: str) -> list[tuple[str, str]]:
     return fields
 
 
+def _is_body_heading(marked: str, match: re.Match[str], next_start: int) -> bool:
+    """True when a ``Measure:`` line is a real body heading, not a TOC entry.
+
+    The dot-leader check on the heading line itself misses TOC entries whose long measure
+    name wraps (the dots land on the NEXT line) — those phantom headings would swallow the
+    remaining TOC as a fake measure body. A real body heading is always followed by a field
+    label (``Label for Stars:`` ...) before any dot-leader run; a TOC continuation is not.
+    """
+    if _TOC_DOTS_RE.search(match.group(2)):
+        return False
+    window = marked[match.end() : min(match.end() + 1500, next_start)]
+    label = _FIELD_LABEL_RE.search(window)
+    if label is None:
+        return False
+    dots = _TOC_DOTS_RE.search(window)
+    return dots is None or label.start() < dots.start()
+
+
 def parse_technical_notes(pdf_path: Path, doc: ManifestDoc) -> NormalizedDoc:
     marked = _extract_marked_text(pdf_path)
 
-    # Body headings only: drop TOC lines (dot leaders).
-    headings = [m for m in _MEASURE_HEAD_RE.finditer(marked) if not _TOC_DOTS_RE.search(m.group(2))]
+    candidates = list(_MEASURE_HEAD_RE.finditer(marked))
+    headings = [
+        m
+        for i, m in enumerate(candidates)
+        if _is_body_heading(
+            marked, m, candidates[i + 1].start() if i + 1 < len(candidates) else len(marked)
+        )
+    ]
     measures: list[MeasureBlock] = []
     for i, head in enumerate(headings):
         start = head.end()
