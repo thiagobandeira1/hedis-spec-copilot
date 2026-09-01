@@ -1,4 +1,4 @@
-"""`hedis build` core: committed corpus -> chunks -> embeddings -> Chroma + sidecar + stamp.
+﻿"""`hedis build` core: committed corpus -> chunks -> embeddings -> Chroma + sidecar + stamp.
 
 Deterministic by construction: chunks are sorted by content-hashed ``chunk_id`` before
 embedding/insert, so identical corpus + config always produces the identical index.
@@ -60,10 +60,11 @@ def build_index(settings: Settings, committed_dir: Path) -> IndexStamp:
     write_chunks_jsonl(chunks_path(settings.index_dir), chunks)
     stamp = IndexStamp(
         embedding_model=settings.embedding_model,
-        config_hash=settings.config_hash(),
+        config_hash=settings.index_hash(),
         manifest_version=_manifest_version(settings),
         chunk_count=len(chunks),
         built_at=datetime.now(UTC).isoformat(),
     )
     write_stamp(settings.index_dir, stamp)
     return stamp
+

@@ -25,6 +25,28 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+
+def main() -> NoReturn:
+    """Console-script entrypoint.
+
+    Chroma's rust binding keeps compacting the HNSW index in a background (non-Python)
+    thread after large writes; on Windows that blocks interpreter shutdown for many minutes
+    after the command's work — including its WAL commits — has durably finished. The console
+    entrypoint therefore flushes and hard-exits with the command's real exit code. Tests
+    invoke ``app`` in-process via CliRunner and never pass through here.
+    """
+    import os
+    import sys
+
+    code = 0
+    try:
+        app()
+    except SystemExit as exc:
+        code = int(exc.code) if isinstance(exc.code, int) else 1
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(code)
+
 MANIFEST_FILENAME = "manifest.yaml"
 #: Module-level so tests (and the eval-content wave) can point at alternative locations.
 DATASET_PATH = Path("evals/dataset/questions.jsonl")
@@ -246,9 +268,12 @@ def evaluate(
         return [scored.chunk.chunk_id for scored in retriever.retrieve(question).chunks]
 
     def gate_a_fn(question: str) -> bool:
+        # Mirrors AnswerService gate A exactly: dense cosine similarity, not RRF rank score.
         result = retriever.retrieve(question)
-        best = max((scored.score for scored in result.chunks), default=0.0)
-        return not result.chunks or best < settings.refusal_score_floor
+        similarity = result.best_dense_similarity
+        return not result.chunks or (
+            similarity is not None and similarity < settings.refusal_score_floor
+        )
 
     report = run_retrieval_eval(retriever_fn, items, resolved, gate_a_fn=gate_a_fn)
 

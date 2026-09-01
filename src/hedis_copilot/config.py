@@ -33,20 +33,36 @@ class Settings(BaseSettings):
     final_k: int = 8
     chunk_max_tokens: int = 480
     chunk_overlap_tokens: int = 64
-    refusal_score_floor: float = 0.02
+    # Gate A floor on best dense cosine similarity. Calibration on the dev split showed
+    # refusal traps do NOT separate from answerables in embedding space (both 0.64-0.79 —
+    # plausible healthcare questions land near corpus content by construction), so this is
+    # a coarse degenerate-query guard only; substantive refusals are the prompt contract's
+    # job (gate B), measured by the full LLM eval. See ADR-007.
+    refusal_score_floor: float = 0.35
 
     embedding_model: str = "BAAI/bge-small-en-v1.5"
 
-    def config_hash(self) -> str:
-        """Hash of every retrieval-affecting knob — stamped into the index and eval artifacts."""
+    def index_hash(self) -> str:
+        """Hash of the knobs baked INTO the index (embedding + chunking) — the stamp key.
+
+        Query-time knobs (k values, floors) deliberately excluded: changing them must not
+        force a rebuild of an index they never touched.
+        """
         payload = {
             "embedding_model": self.embedding_model,
+            "chunk_max_tokens": self.chunk_max_tokens,
+            "chunk_overlap_tokens": self.chunk_overlap_tokens,
+        }
+        return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+
+    def config_hash(self) -> str:
+        """Hash of every retrieval-affecting knob — stamped into eval artifacts."""
+        payload = {
+            "index": self.index_hash(),
             "dense_k": self.dense_k,
             "bm25_k": self.bm25_k,
             "rrf_k": self.rrf_k,
             "final_k": self.final_k,
-            "chunk_max_tokens": self.chunk_max_tokens,
-            "chunk_overlap_tokens": self.chunk_overlap_tokens,
             "refusal_score_floor": self.refusal_score_floor,
         }
         return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:16]

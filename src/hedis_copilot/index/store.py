@@ -1,4 +1,4 @@
-"""Embedded Chroma store + sidecar chunk persistence + index staleness stamp.
+﻿"""Embedded Chroma store + sidecar chunk persistence + index staleness stamp.
 
 Chroma holds ``embed_text`` and thin filterable metadata; full :class:`Chunk` objects are
 too rich for Chroma metadata, so they persist as ``chunks.jsonl`` next to the index and
@@ -28,7 +28,7 @@ CHUNKS_FILENAME = "chunks.jsonl"
 
 
 class StaleIndexError(RuntimeError):
-    """The on-disk index does not match the current code/config — rebuild required."""
+    """The on-disk index does not match the current code/config â€” rebuild required."""
 
 
 class IndexStamp(BaseModel):
@@ -60,7 +60,7 @@ def write_stamp(index_dir: Path, stamp: IndexStamp) -> None:
 def load_stamp(index_dir: Path) -> IndexStamp:
     path = stamp_path(index_dir)
     if not path.is_file():
-        raise StaleIndexError(f"no index stamp at {path} — run `hedis build` to build the index")
+        raise StaleIndexError(f"no index stamp at {path} â€” run `hedis build` to build the index")
     return IndexStamp.model_validate_json(path.read_text(encoding="utf-8"))
 
 
@@ -75,14 +75,14 @@ def verify_stamp(settings: Settings) -> IndexStamp:
         problems.append(
             f"embedding model {stamp.embedding_model!r} != configured {settings.embedding_model!r}"
         )
-    if stamp.config_hash != settings.config_hash():
+    if stamp.config_hash != settings.index_hash():
         problems.append(
-            f"config hash {stamp.config_hash} != current {settings.config_hash()} "
+            f"index hash {stamp.config_hash} != current {settings.index_hash()} "
             "(a retrieval knob changed)"
         )
     if problems:
         raise StaleIndexError(
-            f"index at {settings.index_dir} is stale: " + "; ".join(problems) + " — "
+            f"index at {settings.index_dir} is stale: " + "; ".join(problems) + " â€” "
             "rebuild with `hedis build`"
         )
     return stamp
@@ -98,7 +98,7 @@ def write_chunks_jsonl(path: Path, chunks: Sequence[Chunk]) -> None:
 
 def load_chunks_jsonl(path: Path) -> dict[str, Chunk]:
     if not path.is_file():
-        raise StaleIndexError(f"no chunk sidecar at {path} — run `hedis build`")
+        raise StaleIndexError(f"no chunk sidecar at {path} â€” run `hedis build`")
     chunks: dict[str, Chunk] = {}
     with path.open(encoding="utf-8") as fh:
         for line in fh:
@@ -139,7 +139,7 @@ class ChromaStore:
         )
 
     def reset(self) -> None:
-        """Drop and recreate the collection — a build always starts empty."""
+        """Drop and recreate the collection â€” a build always starts empty."""
         # The collection may not exist yet; chroma's not-found error type varies by version.
         with contextlib.suppress(Exception):
             self._client.delete_collection(COLLECTION_NAME)
@@ -199,3 +199,4 @@ class ChromaStore:
             (str(chunk_id), float(distance))
             for chunk_id, distance in zip(ids, distances, strict=True)
         ]
+

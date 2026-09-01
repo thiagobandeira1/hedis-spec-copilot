@@ -1,0 +1,68 @@
+{
+  "config_hash": "05d482f586746260",
+  "dataset_hash": "0ee214006f191ae2",
+  "date": "2026-09-01",
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "item_count": 60,
+  "metrics": {
+    "overall": {
+      "hit@1": 0.4166666666666667,
+      "mrr": 0.5111855158730159,
+      "precision@8": 0.234375,
+      "recall@5": 0.4173677884615385,
+      "recall@8": 0.5990518162393162
+    },
+    "per_category": {
+      "coding": {
+        "hit@1": 0.125,
+        "mrr": 0.22842261904761904,
+        "precision@8": 0.15625,
+        "recall@5": 0.1875,
+        "recall@8": 0.4375
+      },
+      "cross_year": {
+        "hit@1": 0.5,
+        "mrr": 0.55,
+        "precision@8": 0.3125,
+        "recall@5": 0.11883012820512821,
+        "recall@8": 0.1844551282051282
+      },
+      "eligibility": {
+        "hit@1": 0.6666666666666666,
+        "mrr": 0.7527777777777778,
+        "precision@8": 0.3958333333333333,
+        "recall@5": 0.5652777777777778,
+        "recall@8": 0.6597222222222222
+      },
+      "exclusions": {
+        "hit@1": 0.4,
+        "mrr": 0.5541666666666667,
+        "precision@8": 0.1625,
+        "recall@5": 0.65,
+        "recall@8": 0.85
+      },
+      "refusal_licensed_only": {
+        "refused": 0.0
+      },
+      "refusal_out_of_corpus": {
+        "refused": 0.0
+      },
+      "thresholds": {
+        "hit@1": 0.5,
+        "mrr": 0.5625,
+        "precision@8": 0.21875,
+        "recall@5": 0.471875,
+        "recall@8": 0.5125
+      },
+      "timelines": {
+        "hit@1": 0.16666666666666666,
+        "mrr": 0.2390873015873016,
+        "precision@8": 0.10416666666666667,
+        "recall@5": 0.16666666666666666,
+        "recall@8": 0.6666666666666666
+      }
+    },
+    "refusal_trap_accuracy": 0.0
+  },
+  "tier": "retrieval"
+}

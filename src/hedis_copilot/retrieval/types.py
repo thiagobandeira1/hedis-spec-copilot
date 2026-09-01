@@ -26,6 +26,12 @@ class RetrievalResult(BaseModel):
     """Measure ids the alias router applied (None = unfiltered)."""
     used_fallback: bool = False
     """True when the filtered pass starved (<4 chunks) and the unfiltered union kicked in."""
+    plan_year_applied: int | None = None
+    """Year filter actually used (explicit param > year in query > index default; None for
+    cross-year-smelling queries)."""
+    best_dense_similarity: float | None = None
+    """Best dense cosine similarity across legs — the ONLY absolute relevance signal here
+    (RRF scores are rank-derived); gate-A refusal keys off this."""
 
 
 class RetrieverLike(Protocol):

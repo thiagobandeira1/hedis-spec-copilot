@@ -40,8 +40,19 @@ def make_chunk(
     )
 
 
-def make_result(chunks: list[Chunk], *, score: float = 0.5, query: str = "q") -> RetrievalResult:
-    return RetrievalResult(query=query, chunks=[ScoredChunk(chunk=c, score=score) for c in chunks])
+def make_result(
+    chunks: list[Chunk],
+    *,
+    score: float = 0.5,
+    query: str = "q",
+    dense_similarity: float | None = 0.8,
+) -> RetrievalResult:
+    """Gate A keys off best_dense_similarity (cosine), not the rank-derived RRF score."""
+    return RetrievalResult(
+        query=query,
+        chunks=[ScoredChunk(chunk=c, score=score) for c in chunks],
+        best_dense_similarity=dense_similarity,
+    )
 
 
 class StubRetriever:
@@ -57,7 +68,7 @@ class StubRetriever:
 
 
 def make_settings() -> Settings:
-    return Settings(_env_file=None, answer_model="fake-answerer", refusal_score_floor=0.02)
+    return Settings(_env_file=None, answer_model="fake-answerer")
 
 
 def factory_of(model: BaseChatModel) -> Callable[[], BaseChatModel]:
@@ -148,7 +159,7 @@ def test_model_refusal_sentence_becomes_refused_by_model() -> None:
 
 
 def test_gate_a_low_score_refuses_without_touching_the_model() -> None:
-    retriever = StubRetriever(make_result([make_chunk("c1")], score=0.001))
+    retriever = StubRetriever(make_result([make_chunk("c1")], dense_similarity=0.05))
     service = AnswerService(retriever, exploding_factory, make_settings())
 
     answer = service.ask("q")

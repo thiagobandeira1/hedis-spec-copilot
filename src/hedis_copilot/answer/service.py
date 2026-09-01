@@ -57,10 +57,14 @@ class AnswerService:
     def ask(self, query: str, plan_year: int | None = None) -> Answer:
         result = self._retriever.retrieve(query, plan_year=plan_year)
 
-        # Gate A: nothing retrieved, or best fused score under the calibrated floor ->
-        # code-owned refusal with zero model involvement (works with model_factory=None).
-        best = max((scored.score for scored in result.chunks), default=0.0)
-        if not result.chunks or best < self._settings.refusal_score_floor:
+        # Gate A: nothing retrieved, or the best DENSE cosine similarity under the
+        # calibrated floor -> code-owned refusal with zero model involvement. RRF scores
+        # are rank-derived and carry no absolute relevance signal, so the dense similarity
+        # is the only usable out-of-corpus detector (calibrated on the dev refusal traps).
+        similarity = result.best_dense_similarity
+        if not result.chunks or (
+            similarity is not None and similarity < self._settings.refusal_score_floor
+        ):
             return self._envelope("refused_low_confidence", REFUSAL_LOW_CONFIDENCE, result)
 
         # Keyless degraded mode: no model, but full citation cards for every retrieved chunk.

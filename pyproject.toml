@@ -36,7 +36,7 @@ dev = [
 ]
 
 [project.scripts]
-hedis = "hedis_copilot.cli:app"
+hedis = "hedis_copilot.cli:main"
 
 [build-system]
 requires = ["hatchling"]
