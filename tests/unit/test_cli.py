@@ -1,4 +1,4 @@
-"""CLI wiring tests — no network, no index, no API key.
+"""CLI wiring tests â€” no network, no index, no API key.
 
 Heavy paths (embedding, Chroma, real fetches) are exercised by integration tests and CI's
 build step; here we pin the wiring: exit codes, hints, and that `fetch` delegates to
@@ -6,6 +6,7 @@ build step; here we pin the wiring: exit codes, hints, and that `fetch` delegate
 """
 
 import contextlib
+import json
 from pathlib import Path
 
 import pytest
@@ -114,8 +115,35 @@ def test_fetch_force_flag_is_forwarded(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert seen["force"] is True
 
 
-@pytest.mark.parametrize("command", ["review", "report"])
+@pytest.mark.parametrize("command", ["review"])
 def test_stub_commands_exit_zero_with_wave_note(command: str) -> None:
     result = runner.invoke(cli.app, [command])
     assert result.exit_code == 0
     assert "arrives with the eval-content wave" in result.output
+
+
+def test_report_syncs_readme_from_latest_artifact(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    results_dir = tmp_path / "results"
+    results_dir.mkdir()
+    artifact = {
+        "config_hash": "abc",
+        "dataset_hash": "def",
+        "metrics": {"overall": {"mrr": 0.5, "recall@8": 0.6}},
+    }
+    (results_dir / "retrieval-2026-01-01.json").write_text(json.dumps(artifact), encoding="utf-8")
+    readme = tmp_path / "README.md"
+    readme.write_text("# x\n<!-- EVAL:BEGIN -->\nstale\n<!-- EVAL:END -->\n", encoding="utf-8")
+    monkeypatch.setattr(cli, "RESULTS_DIR", results_dir)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli.app, ["report"])
+    assert result.exit_code == 0
+    content = readme.read_text(encoding="utf-8")
+    assert "stale" not in content
+    assert "mrr" in content
+
+
+def test_report_fails_cleanly_without_artifacts(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(cli, "RESULTS_DIR", tmp_path / "none")
+    result = runner.invoke(cli.app, ["report"])
+    assert result.exit_code == 1
+    assert "no eval artifacts" in result.output

@@ -47,6 +47,7 @@ def main() -> NoReturn:
     sys.stderr.flush()
     os._exit(code)
 
+
 MANIFEST_FILENAME = "manifest.yaml"
 #: Module-level so tests (and the eval-content wave) can point at alternative locations.
 DATASET_PATH = Path("evals/dataset/questions.jsonl")

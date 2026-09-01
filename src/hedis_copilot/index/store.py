@@ -1,4 +1,4 @@
-﻿"""Embedded Chroma store + sidecar chunk persistence + index staleness stamp.
+"""Embedded Chroma store + sidecar chunk persistence + index staleness stamp.
 
 Chroma holds ``embed_text`` and thin filterable metadata; full :class:`Chunk` objects are
 too rich for Chroma metadata, so they persist as ``chunks.jsonl`` next to the index and
@@ -199,4 +199,3 @@ class ChromaStore:
             (str(chunk_id), float(distance))
             for chunk_id, distance in zip(ids, distances, strict=True)
         ]
-
