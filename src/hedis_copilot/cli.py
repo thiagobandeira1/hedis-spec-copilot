@@ -332,8 +332,18 @@ def review() -> None:
 
 @app.command()
 def report() -> None:
-    """Regenerate the README eval table from the latest artifact — eval-content wave."""
-    typer.echo("hedis report arrives with the eval-content wave")
+    """Regenerate the README eval table from the latest committed artifact."""
+    from hedis_copilot.evals.report import ReportError, sync_readme
+
+    artifacts = sorted(RESULTS_DIR.glob("*.json"))
+    if not artifacts:
+        _fail(f"no eval artifacts under {RESULTS_DIR} — run `hedis eval --retrieval` first")
+    latest = artifacts[-1]
+    try:
+        sync_readme(Path("README.md"), json.loads(latest.read_text(encoding="utf-8")))
+    except ReportError as exc:
+        _fail(str(exc))
+    typer.echo(f"README eval table synced from {latest.name}")
 
 
 @app.command()
