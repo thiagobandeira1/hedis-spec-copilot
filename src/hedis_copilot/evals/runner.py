@@ -2,19 +2,25 @@
 
 The retriever arrives as a plain ``Callable[[str], list[str]]`` (query → ranked chunk ids)
 and the gate-A refusal probe as ``Callable[[str], bool]``, so this module never touches an
-index, an embedder, or a network. ``run_full_eval`` (faithfulness tier) is a deliberate
-loud stub until the answer service and the authored gold set land.
+index, an embedder, or a network. Scoring is an adapter over
+:func:`clinevals.runner.score_items`; the ratchet delegates to
+:func:`clinevals.ratchet.compare_to_baseline`. ``run_full_eval`` (faithfulness tier) is a
+deliberate loud stub until the answer service and the authored gold set land.
 """
 
 from collections.abc import Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from typing import NoReturn
 
+from clinevals.dataset import EvalItemBase
+from clinevals.ranking import hit_at, mrr, precision_at, recall_at
+from clinevals.ratchet import Gate
+from clinevals.ratchet import compare_to_baseline as _compare_flat
+from clinevals.runner import ItemScore, score_items
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, ConfigDict
 
 from hedis_copilot.evals.dataset import EvalItem
-from hedis_copilot.evals.retrieval_metrics import aggregate, hit_at, mrr, precision_at, recall_at
 from hedis_copilot.retrieval.types import RetrieverLike
 
 RetrieverFn = Callable[[str], list[str]]
@@ -24,6 +30,7 @@ GateAFn = Callable[[str], bool]
 
 #: Metrics the CI ratchet gates on (SPEC §6: fail if either drops >0.02 below baseline).
 GATED_METRICS: tuple[str, ...] = ("recall@8", "mrr")
+_GATES: tuple[Gate, ...] = tuple(Gate(metric) for metric in GATED_METRICS)
 
 
 class ItemResult(BaseModel):
@@ -55,6 +62,12 @@ class RetrievalReport(BaseModel):
         return self.per_split.get("test", self.overall)
 
 
+class _ScoredItem(EvalItemBase):
+    """clinevals-typed view of an :class:`EvalItem` (P2's model predates ``EvalItemBase``)."""
+
+    source: EvalItem
+
+
 def run_retrieval_eval(
     retriever_fn: RetrieverFn,
     items: Sequence[EvalItem],
@@ -68,50 +81,55 @@ def run_retrieval_eval(
     items are skipped entirely when ``gate_a_fn`` is None (their gold set is empty, so no
     retrieval metric is defined for them).
     """
-    per_item: list[ItemResult] = []
-    answerable_rows: list[tuple[str, dict[str, float]]] = []
-    split_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
-    refusal_rows: list[tuple[str, dict[str, float]]] = []
-    for item in items:
+
+    def score(row: _ScoredItem) -> ItemScore | None:
+        item = row.source
         if item.is_refusal:
             if gate_a_fn is None:
-                continue
-            refused = 1.0 if gate_a_fn(item.question) else 0.0
-            metrics = {"refused": refused}
-            refusal_rows.append((item.category, metrics))
-        else:
-            gold = resolved_gold.get(item.item_id)
-            if not gold:
-                raise KeyError(
-                    f"no resolved gold chunks for answerable item {item.item_id!r} — "
-                    "run resolve_labels over the same corpus first"
-                )
-            ranked = retriever_fn(item.question)
-            metrics = {
+                return None
+            return ItemScore(metrics={"refused": 1.0 if gate_a_fn(item.question) else 0.0})
+        gold = resolved_gold.get(item.item_id)
+        if not gold:
+            raise KeyError(
+                f"no resolved gold chunks for answerable item {item.item_id!r} — "
+                "run resolve_labels over the same corpus first"
+            )
+        ranked = retriever_fn(item.question)
+        return ItemScore(
+            metrics={
                 "hit@1": hit_at(ranked, gold, 1),
                 "recall@5": recall_at(ranked, gold, 5),
                 "recall@8": recall_at(ranked, gold, 8),
                 "precision@8": precision_at(ranked, gold, 8),
                 "mrr": mrr(ranked, gold),
             }
-            answerable_rows.append((item.category, metrics))
-            split_rows.setdefault(item.split, []).append((item.category, metrics))
-        per_item.append(
-            ItemResult(
-                item_id=item.item_id, category=item.category, split=item.split, metrics=metrics
-            )
         )
 
-    answerable_agg = aggregate(answerable_rows)
-    per_category = dict(answerable_agg.per_category)
-    if refusal_rows:
-        per_category.update(aggregate(refusal_rows).per_category)
-    refusal_scores = [metrics["refused"] for _, metrics in refusal_rows]
+    rows = [
+        _ScoredItem(item_id=item.item_id, category=item.category, split=item.split, source=item)
+        for item in items
+    ]
+    report = score_items(rows, score)
+
+    # Byte-compat with the committed artifacts: clinevals' sparse-key means carry the refusal
+    # rows' ``refused`` key in overall/per_split, while P2 publishes answerable-only blocks
+    # there (refusal traps live in per_category + refusal_trap_accuracy). Every other mean is
+    # computed over the same carriers in the same order, so the floats are identical.
+    overall = {key: value for key, value in report.overall.items() if key != "refused"}
+    per_split: dict[str, dict[str, float]] = {}
+    for split, block in report.per_split.items():
+        kept = {key: value for key, value in block.items() if key != "refused"}
+        if kept:  # a split holding only refusal traps has no answerable block in P2
+            per_split[split] = kept
+    refusal_scores = [row.metrics["refused"] for row in report.per_item if "refused" in row.metrics]
     return RetrievalReport(
-        per_item=per_item,
-        per_category=dict(sorted(per_category.items())),
-        overall=answerable_agg.overall,
-        per_split={split: aggregate(rows).overall for split, rows in sorted(split_rows.items())},
+        per_item=[
+            ItemResult(item_id=r.item_id, category=r.category, split=r.split, metrics=r.metrics)
+            for r in report.per_item
+        ],
+        per_category=report.per_category,
+        overall=overall,
+        per_split=per_split,
         refusal_trap_accuracy=(
             sum(refusal_scores) / len(refusal_scores) if refusal_scores else None
         ),
@@ -124,23 +142,16 @@ def compare_to_baseline(
     """Ratchet gate: return one message per gated metric worse than baseline - tolerance.
 
     Only ``recall@8`` and ``mrr`` are gated (SPEC §6), and only when the committed
-    ``evals/baseline.json`` carries them. An empty list means the gate passes.
+    ``evals/baseline.json`` carries them; the ratchet guards published (test-split) numbers.
+    An empty list means the gate passes.
     """
-    regressions: list[str] = []
-    gated_block = report.test_overall  # the ratchet guards published (test-split) numbers
-    for metric in GATED_METRICS:
-        if metric not in baseline:
-            continue
-        expected = baseline[metric]
-        actual = gated_block.get(metric)
-        if actual is None:
-            regressions.append(f"{metric}: missing from report (baseline {expected:.4f})")
-        elif actual < expected - tolerance:
-            regressions.append(
-                f"{metric}: {actual:.4f} regressed below baseline {expected:.4f} "
-                f"- tolerance {tolerance:.2f}"
-            )
-    return regressions
+    regressions = _compare_flat(report.test_overall, baseline, gates=_GATES, tolerance=tolerance)
+    # P2's pre-adoption wording for a gated metric absent from the report is part of the
+    # shim's compatibility surface (pinned by tests/unit/test_retrieval_metrics.py).
+    return [
+        message.replace("missing from current results", "missing from report", 1)
+        for message in regressions
+    ]
 
 
 def run_full_eval(
