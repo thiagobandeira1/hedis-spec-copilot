@@ -4,13 +4,14 @@ Command bodies import the index/retrieval/answer stack lazily: importing this mo
 running ``hedis version --help``) must never pay the chromadb/fastembed import cost.
 """
 
-import hashlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, NoReturn
 
 import typer
+from clinevals.artifacts import sha256_file
+from clinevals.ratchet import load_baseline
 
 from hedis_copilot import __version__
 from hedis_copilot.config import ConfigError, Settings, get_settings
@@ -216,23 +217,15 @@ def ask(
 
 
 def _dataset_hash(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+    return sha256_file(path, short=16)
 
 
-def _gated_baseline(raw: object) -> dict[str, float]:
+def _gated_baseline(path: Path) -> dict[str, float]:
     """Extract flat metric floats from evals/baseline.json (flat, metrics, or overall shape)."""
-    candidate: object = raw
-    if isinstance(candidate, dict) and isinstance(candidate.get("metrics"), dict):
-        candidate = candidate["metrics"]
-    if isinstance(candidate, dict) and isinstance(candidate.get("overall"), dict):
-        candidate = candidate["overall"]
-    if not isinstance(candidate, dict):
-        _fail(f"{BASELINE_PATH} does not contain a metric mapping")
-    return {
-        str(key): float(value)
-        for key, value in candidate.items()
-        if isinstance(value, int | float) and not isinstance(value, bool)
-    }
+    try:
+        return load_baseline(path)
+    except ValueError as exc:
+        _fail(str(exc))
 
 
 @app.command("eval")
@@ -350,9 +343,7 @@ def evaluate(
                 "(the first measured run ratchets it)"
             )
             return
-        regressions = compare_to_baseline(
-            report, _gated_baseline(json.loads(BASELINE_PATH.read_text(encoding="utf-8")))
-        )
+        regressions = compare_to_baseline(report, _gated_baseline(BASELINE_PATH))
         if regressions:
             for regression in regressions:
                 typer.secho(f"REGRESSION: {regression}", err=True, fg=typer.colors.RED)
